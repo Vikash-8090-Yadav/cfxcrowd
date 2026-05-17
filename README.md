@@ -15,6 +15,74 @@ This contract lets:
 - Contract name: `SimpleCrowdfund`
 - Solidity version: `^0.8.20`
 
+Source layout:
+
+- `cfxcrowd.sol` — same contract at repo root (Remix / docs).
+- `contracts/cfxcrowd.sol` — compiled by **Hardhat** (keep logic in sync with root file).
+
+---
+
+## Deploy with Hardhat
+
+### Install
+
+```bash
+npm install
+# or: pnpm install
+```
+
+### Compile
+
+```bash
+npm run compile
+```
+
+### Deploy (in-process Hardhat chain — smoke test)
+
+```bash
+npm run deploy:local
+```
+
+### Deploy to Conflux eSpace (mainnet)
+
+1. Add to `.env` (do **not** commit; `.gitignore` ignores `.env`):
+
+   - `DEPLOYER_PRIVATE_KEY` — account that pays gas (with `0x` prefix).
+   - Optional: `GOAL_CFX`, `DURATION_MINUTES` (defaults `10` and `60`).
+   - Optional: `CONFLUX_ESPACE_RPC_URL` — override public RPC if you hit rate limits.
+
+2. Run:
+
+```bash
+npm run deploy:espace
+```
+
+3. Copy the printed address into `NEXT_PUBLIC_CONTRACT_ADDRESS` for the Next.js app.
+
+### Deploy to Conflux eSpace testnet
+
+Set `DEPLOYER_PRIVATE_KEY` and optionally `CONFLUX_ESPACE_TESTNET_RPC_URL`, then:
+
+```bash
+npm run deploy:espace-testnet
+```
+
+### Local node + deploy
+
+Terminal A:
+
+```bash
+npx hardhat node
+```
+
+Terminal B:
+
+```bash
+npm run deploy:localhost
+```
+
+Uses the first funded account from the local node (no `DEPLOYER_PRIVATE_KEY` needed).
+
 ---
 
 ## How It Works
@@ -30,6 +98,38 @@ Main functions:
 - `contribute()` - send CFX to fund the campaign (before deadline)
 - `withdraw()` - creator withdraws contract balance (after deadline, if goal reached)
 - `refund()` - contributors reclaim funds (after deadline, if goal not reached)
+
+---
+
+## Frontend (Next.js + ethers)
+
+This repo includes a Next.js app that talks to `SimpleCrowdfund` on-chain:
+
+| Piece | Role |
+|--------|------|
+| `lib/contract.ts` | ABI (matches `cfxcrowd.sol`) and `CONTRACT_ADDRESS` from env |
+| `hooks/use-crowdfund.ts` | Read campaign state; call `contribute`, `withdraw`, `refund` |
+| `lib/wallet-context.tsx` | MetaMask (or any `window.ethereum`) connect |
+
+### 1) Deploy the contract
+
+Deploy `SimpleCrowdfund` via Remix or your toolchain on **Conflux eSpace** (or your target EVM chain). Copy the **deployed contract address**.
+
+### 2) Point the app at the contract
+
+1. Copy `.env.example` to `.env.local`.
+2. Set `NEXT_PUBLIC_CONTRACT_ADDRESS` to your deployed address (non-zero `0x…`).
+
+### 3) Install and run
+
+```bash
+pnpm install
+pnpm dev
+```
+
+Open the local URL (usually `http://localhost:3000`). Connect your wallet on the **same network** you used to deploy. The home page loads `creator`, `goal`, `deadline`, `totalRaised`, and your `contributions` via `ethers` `Contract` reads, and submits transactions through your connected signer.
+
+If `NEXT_PUBLIC_CONTRACT_ADDRESS` is missing or still zero, the UI shows setup instructions instead of campaign data.
 
 ---
 
